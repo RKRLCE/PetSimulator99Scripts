@@ -1,1 +1,1141 @@
+-- ========================================
+-- SERVICES & INITIALIZATION
+-- ========================================
+
+local Services = {
+    Players = game:GetService("Players"),
+    TweenService = game:GetService("TweenService"),
+    UserInputService = game:GetService("UserInputService"),
+    RunService = game:GetService("RunService")
+}
+
+local Player = Services.Players.LocalPlayer
+local PlayerGui = Player:WaitForChild("PlayerGui")
+
+-- ========================================
+-- CONFIGURATION
+-- ========================================
+
+local Config = {
+    MaxKeyLength = 50,
+    AnimationSpeed = 0.4,
+    ParticleCount = 60,
+    ParticleSpeed = 60
+}
+
+-- ========================================
+-- COLOR SCHEME
+-- ========================================
+
+local Colors = {
+    Background = Color3.fromRGB(18, 18, 22),
+    Surface = Color3.fromRGB(25, 25, 30),
+    Primary = Color3.fromRGB(45, 45, 50),
+    Secondary = Color3.fromRGB(35, 35, 40),
+    Border = Color3.fromRGB(40, 40, 45),
+    TextPrimary = Color3.fromRGB(220, 220, 225),
+    TextSecondary = Color3.fromRGB(140, 140, 150),
+    Success = Color3.fromRGB(25, 135, 84),
+    Error = Color3.fromRGB(180, 50, 50),
+    Warning = Color3.fromRGB(200, 120, 30),
+    Discord = Color3.fromRGB(60, 70, 180),
+    GetKey = Color3.fromRGB(40, 140, 100),
+    HoverPrimary = Color3.fromRGB(55, 55, 60),
+    HoverDiscord = Color3.fromRGB(50, 60, 160),
+    HoverGetKey = Color3.fromRGB(30, 120, 80),
+    NeonWhite = Color3.fromRGB(255, 255, 255),
+    NeonGlow = Color3.fromRGB(240, 248, 255)
+}
+
+-- ========================================
+-- STATE MANAGEMENT
+-- ========================================
+
+local State = {
+    IsLoading = false,
+    Particles = {},
+    Animations = {},
+    IsDestroyed = false,
+    MousePosition = {X = 0, Y = 0},
+    FocusStates = {
+        InputFocused = false,
+        ButtonHovered = {},
+        AnimationsActive = true
+    }
+}
+
+local UI = {}
+
+-- ========================================
+-- UI CREATION FUNCTIONS
+-- ========================================
+
+local function CreateMainGUI()
+    local screenGui = Instance.new("ScreenGui")
+    screenGui.Name = "KeySystemGUI"
+    screenGui.ResetOnSpawn = false
+    screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+    screenGui.IgnoreGuiInset = true
+    screenGui.DisplayOrder = 100
+    screenGui.Parent = PlayerGui
+    
+    UI.ScreenGui = screenGui
+    return screenGui
+end
+
+local function CreateBackdrop(parent)
+    local backdrop = Instance.new("Frame")
+    backdrop.Name = "Backdrop"
+    backdrop.Size = UDim2.new(1, 0, 1, 0)
+    backdrop.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+    backdrop.BackgroundTransparency = 0.1
+    backdrop.BorderSizePixel = 0
+    backdrop.ZIndex = 100
+    backdrop.Parent = parent
+    
+    UI.Backdrop = backdrop
+    return backdrop
+end
+
+local function CreateContainer(parent)
+    local container = Instance.new("Frame")
+    container.Name = "MainContainer"
+    container.Size = UDim2.new(0, 420, 0, 600)
+    container.Position = UDim2.new(0.5, -210, 0.5, -300)
+    container.BackgroundColor3 = Colors.Background
+    container.BorderSizePixel = 0
+    container.ZIndex = 110
+    container.Selectable = false
+    container.Parent = parent
+    
+    local corner = Instance.new("UICorner")
+    corner.CornerRadius = UDim.new(0, 20)
+    corner.Parent = container
+    
+    local stroke = Instance.new("UIStroke")
+    stroke.Color = Colors.Border
+    stroke.Thickness = 1
+    stroke.Transparency = 0.3
+    stroke.Parent = container
+    
+    UI.Container = container
+    return container
+end
+
+local function CreateAnimatedBorder(parent)
+    local border = Instance.new("Frame")
+    border.Name = "AnimatedBorder"
+    border.Size = UDim2.new(1, 6, 1, 6)
+    border.Position = UDim2.new(0, -3, 0, -3)
+    border.BackgroundTransparency = 1
+    border.ZIndex = 109
+    border.Selectable = false
+    border.Parent = parent
+    
+    local corner = Instance.new("UICorner")
+    corner.CornerRadius = UDim.new(0, 23)
+    corner.Parent = border
+    
+    local stroke = Instance.new("UIStroke")  
+    stroke.Color = Colors.NeonWhite
+    stroke.Thickness = 2
+    stroke.Transparency = 0.3
+    stroke.Parent = border
+    
+    local gradient = Instance.new("UIGradient")
+    gradient.Color = ColorSequence.new{
+        ColorSequenceKeypoint.new(0, Colors.NeonWhite),
+        ColorSequenceKeypoint.new(0.5, Colors.NeonGlow),
+        ColorSequenceKeypoint.new(1, Colors.NeonWhite)
+    }
+    gradient.Transparency = NumberSequence.new{
+        NumberSequenceKeypoint.new(0, 0.9),
+        NumberSequenceKeypoint.new(0.2, 0.1),
+        NumberSequenceKeypoint.new(0.8, 0.1),
+        NumberSequenceKeypoint.new(1, 0.9)
+    }
+    gradient.Parent = stroke
+    
+    UI.AnimatedBorder = {Frame = border, Gradient = gradient, Stroke = stroke}
+    return border
+end
+
+-- ========================================
+-- HEADER SECTION
+-- ========================================
+
+local function CreateHeader(parent)
+    local header = Instance.new("Frame")
+    header.Name = "Header"
+    header.Size = UDim2.new(1, 0, 0, 100)
+    header.BackgroundTransparency = 1
+    header.ZIndex = 11
+    header.Selectable = false
+    header.Parent = parent
+    
+    local iconContainer = Instance.new("Frame")
+    iconContainer.Size = UDim2.new(0, 56, 0, 56)
+    iconContainer.Position = UDim2.new(0.5, -28, 0, 24)
+    iconContainer.BackgroundColor3 = Colors.Primary
+    iconContainer.BorderSizePixel = 0
+    iconContainer.ZIndex = 12
+    iconContainer.Selectable = false
+    iconContainer.Parent = header
+    
+    local iconCorner = Instance.new("UICorner")
+    iconCorner.CornerRadius = UDim.new(0, 14)
+    iconCorner.Parent = iconContainer
+    
+    local iconGlow = Instance.new("Frame")
+    iconGlow.Size = UDim2.new(1, 12, 1, 12)
+    iconGlow.Position = UDim2.new(0, -6, 0, -6)
+    iconGlow.BackgroundTransparency = 1
+    iconGlow.ZIndex = 11
+    iconGlow.Selectable = false
+    iconGlow.Parent = iconContainer
+    
+    local glowCorner = Instance.new("UICorner")
+    glowCorner.CornerRadius = UDim.new(0, 20)
+    glowCorner.Parent = iconGlow
+    
+    local glowStroke = Instance.new("UIStroke")
+    glowStroke.Color = Colors.NeonWhite
+    glowStroke.Thickness = 3
+    glowStroke.Transparency = 0.2
+    glowStroke.Parent = iconGlow
+    
+    local glowGradient = Instance.new("UIGradient")
+    glowGradient.Color = ColorSequence.new{
+        ColorSequenceKeypoint.new(0, Colors.NeonWhite),
+        ColorSequenceKeypoint.new(0.5, Colors.NeonGlow),
+        ColorSequenceKeypoint.new(1, Colors.NeonWhite)
+    }
+    glowGradient.Transparency = NumberSequence.new{
+        NumberSequenceKeypoint.new(0, 0.8),
+        NumberSequenceKeypoint.new(0.2, 0.05),
+        NumberSequenceKeypoint.new(0.8, 0.05),
+        NumberSequenceKeypoint.new(1, 0.8)
+    }
+    glowGradient.Parent = glowStroke
+    
+    local iconImage = Instance.new("ImageLabel")
+    iconImage.Size = UDim2.new(0.8, 0, 0.8, 0)
+    iconImage.Position = UDim2.new(0.1, 0, 0.1, 0)
+    iconImage.BackgroundTransparency = 1
+    iconImage.Image = "rbxassetid://95233466475324"
+    iconImage.ImageColor3 = Colors.NeonWhite
+    iconImage.ImageTransparency = 0.1
+    iconImage.ScaleType = Enum.ScaleType.Fit
+    iconImage.ZIndex = 13
+    iconImage.Parent = iconContainer
+    
+    UI.Header = {Container = header, IconGlow = glowGradient, IconStroke = glowStroke}
+    return header
+end
+
+-- ========================================
+-- CONTENT SECTION
+-- ========================================
+
+local function CreateContent(parent)
+    local content = Instance.new("Frame")
+    content.Name = "Content"
+    content.Size = UDim2.new(1, -64, 0, 440)
+    content.Position = UDim2.new(0, 32, 0, 120)
+    content.BackgroundTransparency = 1
+    content.ZIndex = 11
+    content.Selectable = false
+    content.Parent = parent
+    
+    local title = Instance.new("TextLabel")
+    title.Size = UDim2.new(1, 0, 0, 32)
+    title.BackgroundTransparency = 1
+    title.Text = "Access Key Required"
+    title.TextColor3 = Colors.TextPrimary
+    title.TextSize = 24
+    title.Font = Enum.Font.GothamBold
+    title.TextXAlignment = Enum.TextXAlignment.Center
+    title.ZIndex = 12
+    title.Parent = content
+    
+    local subtitle = Instance.new("TextLabel")
+    subtitle.Size = UDim2.new(1, 0, 0, 40)
+    subtitle.Position = UDim2.new(0, 0, 0, 40)
+    subtitle.BackgroundTransparency = 1
+    subtitle.Text = "Enter your access key to continue"
+    subtitle.TextColor3 = Colors.TextSecondary
+    subtitle.TextSize = 16
+    subtitle.Font = Enum.Font.Gotham
+    subtitle.TextXAlignment = Enum.TextXAlignment.Center
+    subtitle.TextWrapped = true
+    subtitle.ZIndex = 12
+    subtitle.Parent = content
+    
+    UI.Content = content
+    return content
+end
+
+-- ========================================
+-- INPUT SECTION
+-- ========================================
+
+local function CreateInputSection(parent)
+    local section = Instance.new("Frame")
+    section.Size = UDim2.new(1, 0, 0, 100)
+    section.Position = UDim2.new(0, 0, 0, 100)
+    section.BackgroundTransparency = 1
+    section.ZIndex = 12
+    section.Selectable = false
+    section.Parent = parent
+    
+    local inputContainer = Instance.new("Frame")
+    inputContainer.Size = UDim2.new(1, 0, 0, 52)
+    inputContainer.BackgroundColor3 = Colors.Surface
+    inputContainer.BorderSizePixel = 0
+    inputContainer.ZIndex = 13
+    inputContainer.Selectable = false
+    inputContainer.Parent = section
+    
+    local corner = Instance.new("UICorner")
+    corner.CornerRadius = UDim.new(0, 12)
+    corner.Parent = inputContainer
+    
+    local stroke = Instance.new("UIStroke")
+    stroke.Color = Colors.Border
+    stroke.Thickness = 1
+    stroke.Transparency = 0.3
+    stroke.Parent = inputContainer
+    
+    local inputGlow = Instance.new("Frame")
+    inputGlow.Size = UDim2.new(1, 8, 1, 8)
+    inputGlow.Position = UDim2.new(0, -4, 0, -4)
+    inputGlow.BackgroundTransparency = 1
+    inputGlow.ZIndex = inputContainer.ZIndex - 1
+    inputGlow.Visible = false
+    inputGlow.Selectable = false
+    inputGlow.Parent = inputContainer
+    
+    local glowCorner = Instance.new("UICorner")
+    glowCorner.CornerRadius = UDim.new(0, 16)
+    glowCorner.Parent = inputGlow
+    
+    local glowStroke = Instance.new("UIStroke")
+    glowStroke.Color = Colors.NeonWhite
+    glowStroke.Thickness = 2
+    glowStroke.Transparency = 0.3
+    glowStroke.Parent = inputGlow
+    
+    local glowGradient = Instance.new("UIGradient")
+    glowGradient.Color = ColorSequence.new{
+        ColorSequenceKeypoint.new(0, Colors.NeonWhite),
+        ColorSequenceKeypoint.new(0.5, Colors.NeonGlow),
+        ColorSequenceKeypoint.new(1, Colors.NeonWhite)
+    }
+    glowGradient.Transparency = NumberSequence.new{
+        NumberSequenceKeypoint.new(0, 0.8),
+        NumberSequenceKeypoint.new(0.2, 0.1),
+        NumberSequenceKeypoint.new(0.8, 0.1),
+        NumberSequenceKeypoint.new(1, 0.8)
+    }
+    glowGradient.Parent = glowStroke
+    
+    local textInput = Instance.new("TextBox")
+    textInput.Size = UDim2.new(1, -24, 1, 0)
+    textInput.Position = UDim2.new(0, 12, 0, 0)
+    textInput.BackgroundTransparency = 1
+    textInput.Text = ""
+    textInput.PlaceholderText = "Enter key here"
+    textInput.TextColor3 = Colors.TextPrimary
+    textInput.PlaceholderColor3 = Colors.TextSecondary
+    textInput.TextSize = 16
+    textInput.Font = Enum.Font.Gotham
+    textInput.TextXAlignment = Enum.TextXAlignment.Left
+    textInput.ClearTextOnFocus = false
+    textInput.ZIndex = 14
+    textInput.Selectable = true
+    textInput.Parent = inputContainer
+    
+    local charCounter = Instance.new("TextLabel")
+    charCounter.Size = UDim2.new(0, 80, 0, 20)
+    charCounter.Position = UDim2.new(1, -85, 0, 60)
+    charCounter.BackgroundTransparency = 1
+    charCounter.Text = "0/" .. Config.MaxKeyLength
+    charCounter.TextColor3 = Colors.TextSecondary
+    charCounter.TextSize = 12
+    charCounter.Font = Enum.Font.Gotham
+    charCounter.TextXAlignment = Enum.TextXAlignment.Right
+    charCounter.ZIndex = 13
+    charCounter.Parent = section
+    
+    UI.Input = {
+        Container = inputContainer,
+        TextBox = textInput,
+        Counter = charCounter,
+        Stroke = stroke,
+        Glow = {Frame = inputGlow, Stroke = glowStroke, Gradient = glowGradient}
+    }
+    
+    return section
+end
+
+-- ========================================
+-- BUTTON SECTION
+-- ========================================
+
+local function CreateButtons(parent)
+    local submitButton = Instance.new("TextButton")
+    submitButton.Size = UDim2.new(1, 0, 0, 48)
+    submitButton.Position = UDim2.new(0, 0, 0, 200)
+    submitButton.BackgroundColor3 = Colors.Primary
+    submitButton.BorderSizePixel = 0
+    submitButton.Text = "Verify Access Key"
+    submitButton.TextColor3 = Colors.TextPrimary
+    submitButton.TextSize = 16
+    submitButton.Font = Enum.Font.GothamMedium
+    submitButton.AutoButtonColor = false
+    submitButton.ZIndex = 13
+    submitButton.Selectable = true
+    submitButton.Parent = parent
+    
+    local submitCorner = Instance.new("UICorner")
+    submitCorner.CornerRadius = UDim.new(0, 12)
+    submitCorner.Parent = submitButton
+    
+    local loadingContainer = Instance.new("Frame")
+    loadingContainer.Size = UDim2.new(0, 24, 0, 24)
+    loadingContainer.Position = UDim2.new(0.5, -12, 0, 12)
+    loadingContainer.BackgroundTransparency = 1
+    loadingContainer.Visible = false
+    loadingContainer.ZIndex = 14
+    loadingContainer.Selectable = false
+    loadingContainer.Parent = submitButton
+    
+    local spinner = Instance.new("Frame")
+    spinner.Size = UDim2.new(1, 0, 1, 0)
+    spinner.BackgroundColor3 = Colors.TextPrimary
+    spinner.BorderSizePixel = 0
+    spinner.ZIndex = 15
+    spinner.Selectable = false
+    spinner.Parent = loadingContainer
+    
+    local spinnerCorner = Instance.new("UICorner")
+    spinnerCorner.CornerRadius = UDim.new(1, 0)
+    spinnerCorner.Parent = spinner
+    
+    local spinnerGradient = Instance.new("UIGradient")
+    spinnerGradient.Transparency = NumberSequence.new{
+        NumberSequenceKeypoint.new(0, 0),
+        NumberSequenceKeypoint.new(0.8, 0.8),
+        NumberSequenceKeypoint.new(1, 1)
+    }
+    spinnerGradient.Parent = spinner
+    
+    local buttonsContainer = Instance.new("Frame")
+    buttonsContainer.Size = UDim2.new(1, 0, 0, 48)
+    buttonsContainer.Position = UDim2.new(0, 0, 0, 260)
+    buttonsContainer.BackgroundTransparency = 1
+    buttonsContainer.ZIndex = 12
+    buttonsContainer.Selectable = false
+    buttonsContainer.Parent = parent
+    
+    local getKeyButton = Instance.new("TextButton")
+    getKeyButton.Size = UDim2.new(0.48, 0, 1, 0)
+    getKeyButton.BackgroundColor3 = Colors.GetKey
+    getKeyButton.BorderSizePixel = 0
+    getKeyButton.Text = "Get Key"
+    getKeyButton.TextColor3 = Colors.TextPrimary
+    getKeyButton.TextSize = 14
+    getKeyButton.Font = Enum.Font.GothamMedium
+    getKeyButton.AutoButtonColor = false
+    getKeyButton.ZIndex = 13
+    getKeyButton.Selectable = true
+    getKeyButton.Parent = buttonsContainer
+    
+    local getKeyCorner = Instance.new("UICorner")
+    getKeyCorner.CornerRadius = UDim.new(0, 10)
+    getKeyCorner.Parent = getKeyButton
+    
+    local discordButton = Instance.new("TextButton")
+    discordButton.Size = UDim2.new(0.48, 0, 1, 0)
+    discordButton.Position = UDim2.new(0.52, 0, 0, 0)
+    discordButton.BackgroundColor3 = Colors.Discord
+    discordButton.BorderSizePixel = 0
+    discordButton.Text = "Discord"
+    discordButton.TextColor3 = Colors.TextPrimary
+    discordButton.TextSize = 14
+    discordButton.Font = Enum.Font.GothamMedium
+    discordButton.AutoButtonColor = false
+    discordButton.ZIndex = 13
+    discordButton.Selectable = true
+    discordButton.Parent = buttonsContainer
+    
+    local discordCorner = Instance.new("UICorner")
+    discordCorner.CornerRadius = UDim.new(0, 10)
+    discordCorner.Parent = discordButton
+    
+    UI.Buttons = {
+        Submit = submitButton,
+        GetKey = getKeyButton,
+        Discord = discordButton,
+        Loading = {Container = loadingContainer, Spinner = spinner}
+    }
+    
+    return {submitButton, getKeyButton, discordButton}
+end
+
+-- ========================================
+-- STATUS SECTION
+-- ========================================
+
+local function CreateStatus(parent)
+    local statusContainer = Instance.new("Frame")
+    statusContainer.Size = UDim2.new(1, 0, 0, 60)
+    statusContainer.Position = UDim2.new(0, 0, 0, 330)
+    statusContainer.BackgroundTransparency = 1
+    statusContainer.ZIndex = 12
+    statusContainer.Selectable = false
+    statusContainer.Parent = parent
+    
+    local statusLabel = Instance.new("TextLabel")
+    statusLabel.Size = UDim2.new(1, 0, 1, 0)
+    statusLabel.BackgroundTransparency = 1
+    statusLabel.Text = ""
+    statusLabel.TextColor3 = Colors.Error
+    statusLabel.TextSize = 14
+    statusLabel.Font = Enum.Font.Gotham
+    statusLabel.TextXAlignment = Enum.TextXAlignment.Center
+    statusLabel.TextWrapped = true
+    statusLabel.ZIndex = 13
+    statusLabel.Parent = statusContainer
+    
+    UI.Status = statusLabel
+    return statusLabel
+end
+
+-- ========================================
+-- PARTICLE SYSTEM
+-- ========================================
+
+local function CreateParticleContainer(parent)
+    local container = Instance.new("Frame")
+    container.Size = UDim2.new(1, 0, 1, 0)
+    container.BackgroundTransparency = 1
+    container.ZIndex = 105
+    container.Selectable = false
+    container.Parent = parent
+    
+    UI.ParticleContainer = container
+    return container
+end
+
+local function CreateParticle()
+    if not UI.ParticleContainer or not UI.ParticleContainer.Parent or State.IsDestroyed then
+        return nil
+    end
+    
+    local size = math.random(8, 24)
+    local particle = Instance.new("Frame")
+    particle.Size = UDim2.new(0, size, 0, size)
+    particle.Position = UDim2.new(math.random() * 1.4 - 0.2, 0, 1.2, 0)
+    particle.BackgroundColor3 = Colors.NeonWhite
+    particle.BackgroundTransparency = math.random(60, 85) / 100
+    particle.BorderSizePixel = 0
+    particle.ZIndex = 106
+    particle.Selectable = false
+    particle.Parent = UI.ParticleContainer
+    
+    local corner = Instance.new("UICorner")
+    corner.CornerRadius = UDim.new(1, 0)
+    corner.Parent = particle
+    
+    local gradient = Instance.new("UIGradient")
+    local bubbleColors = {
+        Color3.fromRGB(200, 230, 255),
+        Color3.fromRGB(180, 220, 255),
+        Color3.fromRGB(220, 240, 255),
+        Color3.fromRGB(190, 210, 240)
+    }
+    local color1 = bubbleColors[math.random(#bubbleColors)]
+    local color2 = bubbleColors[math.random(#bubbleColors)]
+    
+    gradient.Color = ColorSequence.new{
+        ColorSequenceKeypoint.new(0, color1),
+        ColorSequenceKeypoint.new(0.3, Color3.fromRGB(255, 255, 255)),
+        ColorSequenceKeypoint.new(0.7, color2),
+        ColorSequenceKeypoint.new(1, color1)
+    }
+    gradient.Rotation = math.random(0, 360)
+    gradient.Parent = particle
+    
+    local highlight = Instance.new("Frame")
+    highlight.Size = UDim2.new(0.3, 0, 0.3, 0)
+    highlight.Position = UDim2.new(0.2, 0, 0.15, 0)
+    highlight.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+    highlight.BackgroundTransparency = 0.3
+    highlight.BorderSizePixel = 0
+    highlight.ZIndex = particle.ZIndex + 1
+    highlight.Parent = particle
+    
+    local highlightCorner = Instance.new("UICorner")
+    highlightCorner.CornerRadius = UDim.new(1, 0)
+    highlightCorner.Parent = highlight
+    
+    local glow = Instance.new("Frame")
+    glow.Size = UDim2.new(1.8, 0, 1.8, 0)
+    glow.Position = UDim2.new(-0.4, 0, -0.4, 0)
+    glow.BackgroundColor3 = Color3.fromRGB(200, 230, 255)
+    glow.BackgroundTransparency = 0.9
+    glow.BorderSizePixel = 0
+    glow.ZIndex = particle.ZIndex - 1
+    glow.Parent = particle
+    
+    local glowCorner = Instance.new("UICorner")
+    glowCorner.CornerRadius = UDim.new(1, 0)
+    glowCorner.Parent = glow
+    
+    local particleData = {
+        frame = particle,
+        vx = (math.random() - 0.5) * 0.004,
+        vy = -math.random(20, 50) / 10000,
+        created = tick(),
+        rotation = 0,
+        rotationSpeed = (math.random() - 0.5) * 2,
+        pulsePhase = math.random() * math.pi * 2,
+        driftPhase = math.random() * math.pi * 2,
+        originalTransparency = particle.BackgroundTransparency,
+        glow = glow,
+        highlight = highlight,
+        lifetime = math.random(30, 60),
+        originalSize = size,
+        wobblePhase = math.random() * math.pi * 2,
+        repelForce = {x = 0, y = 0},
+        mass = size / 10
+    }
+    
+    table.insert(State.Particles, particleData)
+    return particle
+end
+
+local function UpdateParticles()
+    if State.IsDestroyed or not UI.ParticleContainer then return end
+    
+    local screenSize = UI.ScreenGui.AbsoluteSize
+    local mouseScreenX = State.MousePosition.X / screenSize.X
+    local mouseScreenY = State.MousePosition.Y / screenSize.Y
+    
+    for i = #State.Particles, 1, -1 do
+        local p = State.Particles[i]
+        
+        if not p or not p.frame or not p.frame.Parent then
+            table.remove(State.Particles, i)
+        else
+            local currentPos = p.frame.Position
+            local age = tick() - p.created
+            
+            if currentPos.Y.Scale < -0.3 or age > p.lifetime then
+                p.frame:Destroy()
+                table.remove(State.Particles, i)
+            else
+                local distanceToMouse = math.sqrt(
+                    (currentPos.X.Scale - mouseScreenX)^2 + 
+                    (currentPos.Y.Scale - mouseScreenY)^2
+                )
+                
+                local repelStrength = 0.08
+                local repelRadius = 0.15
+                local repelForceX = 0
+                local repelForceY = 0
+                
+                if distanceToMouse < repelRadius and distanceToMouse > 0 then
+                    local repelPower = (repelRadius - distanceToMouse) / repelRadius
+                    repelPower = repelPower * repelStrength / p.mass
+                    
+                    local directionX = (currentPos.X.Scale - mouseScreenX) / distanceToMouse
+                    local directionY = (currentPos.Y.Scale - mouseScreenY) / distanceToMouse
+                    
+                    repelForceX = directionX * repelPower
+                    repelForceY = directionY * repelPower
+                end
+                
+                p.repelForce.x = p.repelForce.x * 0.85 + repelForceX * 0.15
+                p.repelForce.y = p.repelForce.y * 0.85 + repelForceY * 0.15
+                
+                local newX = currentPos.X.Scale + p.vx + p.repelForce.x
+                local newY = currentPos.Y.Scale + p.vy + p.repelForce.y
+                
+                if newX <= -0.2 then newX = 1.2
+                elseif newX >= 1.2 then newX = -0.2 end
+                
+                local wobbleTime = tick() * 1.5 + p.wobblePhase
+                newX = newX + math.sin(wobbleTime) * 0.002
+                newY = newY + math.cos(wobbleTime * 0.7) * 0.001
+                
+                newX = newX + (math.random() - 0.5) * 0.0008
+                newY = newY + (math.random() - 0.5) * 0.0005
+                
+                p.rotation = p.rotation + p.rotationSpeed
+                p.frame.Rotation = p.rotation
+                
+                local breathe = math.sin(tick() * 2.5 + p.pulsePhase) * 0.1 + 1
+                local currentSize = p.originalSize * breathe
+                p.frame.Size = UDim2.new(0, currentSize, 0, currentSize)
+                
+                local transparencyPulse = math.sin(tick() * 3 + p.pulsePhase) * 0.1
+                local newTransparency = math.max(0.5, math.min(0.95, p.originalTransparency + transparencyPulse))
+                p.frame.BackgroundTransparency = newTransparency
+                
+                local glowIntensity = 0.9
+                if distanceToMouse < 0.2 then
+                    glowIntensity = 0.7 + (distanceToMouse / 0.2) * 0.2
+                end
+                p.glow.BackgroundTransparency = glowIntensity
+                
+                local shimmer = math.sin(tick() * 4 + p.pulsePhase) * 0.2 + 0.3
+                p.highlight.BackgroundTransparency = shimmer
+                
+                p.vx = p.vx * 0.995
+                p.vy = p.vy * 0.998
+                
+                p.frame.Position = UDim2.new(newX, 0, newY, 0)
+            end
+        end
+    end
+end
+
+-- ========================================
+-- VISUAL EFFECTS
+-- ========================================
+
+local function CreateButtonGlow(button, hoverColor, originalColor)
+    local glowBorder = Instance.new("Frame")
+    glowBorder.Size = UDim2.new(1, 8, 1, 8)
+    glowBorder.Position = UDim2.new(0, -4, 0, -4)
+    glowBorder.BackgroundTransparency = 1
+    glowBorder.ZIndex = button.ZIndex - 1
+    glowBorder.Visible = false
+    glowBorder.Selectable = false
+    glowBorder.Parent = button
+    
+    local corner = Instance.new("UICorner")
+    corner.CornerRadius = UDim.new(0, 14)
+    corner.Parent = glowBorder
+    
+    local stroke = Instance.new("UIStroke")
+    stroke.Color = Colors.NeonWhite
+    stroke.Thickness = 2
+    stroke.Transparency = 0.3
+    stroke.Parent = glowBorder
+    
+    local gradient = Instance.new("UIGradient")
+    gradient.Color = ColorSequence.new{
+        ColorSequenceKeypoint.new(0, Colors.NeonWhite),
+        ColorSequenceKeypoint.new(0.5, Colors.NeonGlow),
+        ColorSequenceKeypoint.new(1, Colors.NeonWhite)
+    }
+    gradient.Transparency = NumberSequence.new{
+        NumberSequenceKeypoint.new(0, 0.8),
+        NumberSequenceKeypoint.new(0.2, 0.1),
+        NumberSequenceKeypoint.new(0.8, 0.1),
+        NumberSequenceKeypoint.new(1, 0.8)
+    }
+    gradient.Parent = stroke
+    
+    local currentTween = nil
+    local buttonId = tostring(button)
+    
+    button.MouseEnter:Connect(function()
+        State.FocusStates.ButtonHovered[buttonId] = true
+        glowBorder.Visible = true
+        
+        Services.TweenService:Create(button, TweenInfo.new(0.2, Enum.EasingStyle.Quad), 
+            {BackgroundColor3 = hoverColor}):Play()
+        
+        Services.TweenService:Create(stroke, TweenInfo.new(0.2, Enum.EasingStyle.Quad), 
+            {Transparency = 0.1}):Play()
+        
+        if currentTween then currentTween:Cancel() end
+        currentTween = Services.TweenService:Create(gradient, 
+            TweenInfo.new(1.5, Enum.EasingStyle.Linear, Enum.EasingDirection.InOut, -1), 
+            {Rotation = 360})
+        currentTween:Play()
+    end)
+    
+    button.MouseLeave:Connect(function()
+        State.FocusStates.ButtonHovered[buttonId] = false
+        
+        Services.TweenService:Create(button, TweenInfo.new(0.2, Enum.EasingStyle.Quad), 
+            {BackgroundColor3 = originalColor}):Play()
+        
+        Services.TweenService:Create(stroke, TweenInfo.new(0.3, Enum.EasingStyle.Quad), 
+            {Transparency = 0.8}):Play()
+        
+        if currentTween then
+            currentTween:Cancel()
+            gradient.Rotation = 0
+        end
+        
+        task.spawn(function()
+            task.wait(0.3)
+            if glowBorder and glowBorder.Parent then
+                glowBorder.Visible = false
+            end
+        end)
+    end)
+    
+    return {glowBorder, stroke, gradient}
+end
+
+-- ========================================
+-- STATUS & FEEDBACK FUNCTIONS
+-- ========================================
+
+local function ShowStatus(message, isError, isSuccess)
+    if not UI.Status then return end
+    
+    UI.Status.Text = message
+    if isSuccess then
+        UI.Status.TextColor3 = Colors.Success
+    elseif isError then
+        UI.Status.TextColor3 = Colors.Error
+    else
+        UI.Status.TextColor3 = Colors.Warning
+    end
+    
+    UI.Status.TextTransparency = 1
+    Services.TweenService:Create(UI.Status, TweenInfo.new(0.3, Enum.EasingStyle.Quad), 
+        {TextTransparency = 0}):Play()
+end
+
+local function ClearStatus()
+    if UI.Status then
+        Services.TweenService:Create(UI.Status, TweenInfo.new(0.3, Enum.EasingStyle.Quad), 
+            {TextTransparency = 1}):Play()
+    end
+end
+
+local function SetLoading(isLoading)
+    State.IsLoading = isLoading
+    if not UI.Buttons then return end
+    
+    UI.Buttons.Loading.Container.Visible = isLoading
+    UI.Buttons.Submit.Text = isLoading and "" or "Verify Access Key"
+    
+    if isLoading then
+        local tween = Services.TweenService:Create(UI.Buttons.Loading.Spinner, 
+            TweenInfo.new(1, Enum.EasingStyle.Linear, Enum.EasingDirection.InOut, -1), 
+            {Rotation = 360})
+        tween:Play()
+        State.Animations.SpinTween = tween
+    else
+        if State.Animations.SpinTween then
+            State.Animations.SpinTween:Cancel()
+            UI.Buttons.Loading.Spinner.Rotation = 0
+        end
+    end
+end
+
+-- ========================================
+-- INPUT HANDLING
+-- ========================================
+
+local function UpdateCharCounter()
+    if not UI.Input then return end
+    
+    local currentLength = string.len(UI.Input.TextBox.Text)
+    UI.Input.Counter.Text = currentLength .. "/" .. Config.MaxKeyLength
+    
+    if currentLength >= Config.MaxKeyLength then
+        UI.Input.Counter.TextColor3 = Colors.Error
+    elseif currentLength >= Config.MaxKeyLength * 0.8 then
+        UI.Input.Counter.TextColor3 = Colors.Warning
+    else
+        UI.Input.Counter.TextColor3 = Colors.TextSecondary
+    end
+end
+
+local function CopyToClipboard(text, successMessage)
+    local success = pcall(function()
+        if setclipboard then
+            setclipboard(text)
+            ShowStatus(successMessage, false, true)
+        else
+            ShowStatus("Link: " .. text, false, true)
+        end
+    end)
+    
+    if not success then
+        ShowStatus("Link: " .. text, false, true)
+    end
+end
+
+-- ========================================
+-- EVENT CONNECTIONS
+-- ========================================
+
+local function ConnectEvents()
+    Services.UserInputService.InputChanged:Connect(function(input, gameProcessed)
+        if input.UserInputType == Enum.UserInputType.MouseMovement then
+            State.MousePosition.X = input.Position.X
+            State.MousePosition.Y = input.Position.Y
+        end
+    end)
+    
+    UI.Input.TextBox:GetPropertyChangedSignal("Text"):Connect(function()
+        local currentText = UI.Input.TextBox.Text
+        
+        if string.len(currentText) > Config.MaxKeyLength then
+            UI.Input.TextBox.Text = string.sub(currentText, 1, Config.MaxKeyLength)
+            ShowStatus("Maximum character limit reached (" .. Config.MaxKeyLength .. ")", true)
+        end
+        
+        UpdateCharCounter()
+        ClearStatus()
+    end)
+    
+    local inputGlowTween = nil
+    
+    UI.Input.TextBox.Focused:Connect(function()
+        State.FocusStates.InputFocused = true
+        UI.Input.Glow.Frame.Visible = true
+        
+        Services.TweenService:Create(UI.Input.Stroke, 
+            TweenInfo.new(0.2, Enum.EasingStyle.Quad), 
+            {Color = Colors.NeonWhite, Transparency = 0.1}):Play()
+        
+        Services.TweenService:Create(UI.Input.Glow.Stroke, 
+            TweenInfo.new(0.2, Enum.EasingStyle.Quad), 
+            {Transparency = 0.1}):Play()
+        
+        if inputGlowTween then inputGlowTween:Cancel() end
+        inputGlowTween = Services.TweenService:Create(UI.Input.Glow.Gradient, 
+            TweenInfo.new(2, Enum.EasingStyle.Linear, Enum.EasingDirection.InOut, -1), 
+            {Rotation = 360})
+        inputGlowTween:Play()
+        State.Animations.InputGlowTween = inputGlowTween
+        ClearStatus()
+    end)
+    
+    UI.Input.TextBox.FocusLost:Connect(function()
+        State.FocusStates.InputFocused = false
+        
+        Services.TweenService:Create(UI.Input.Stroke, 
+            TweenInfo.new(0.2, Enum.EasingStyle.Quad), 
+            {Color = Colors.Border, Transparency = 0.3}):Play()
+        
+        Services.TweenService:Create(UI.Input.Glow.Stroke, 
+            TweenInfo.new(0.3, Enum.EasingStyle.Quad), 
+            {Transparency = 0.8}):Play()
+        
+        if inputGlowTween then
+            inputGlowTween:Cancel()
+            UI.Input.Glow.Gradient.Rotation = 0
+            State.Animations.InputGlowTween = nil
+        end
+        
+        task.spawn(function()
+            task.wait(0.3)
+            if UI.Input.Glow.Frame and UI.Input.Glow.Frame.Parent then
+                UI.Input.Glow.Frame.Visible = false
+            end
+        end)
+    end)
+    
+    Services.UserInputService.InputBegan:Connect(function(input, gameProcessed)
+        if gameProcessed or State.IsDestroyed then return end
+        
+        if input.KeyCode == Enum.KeyCode.Return and UI.Input.TextBox:IsFocused() then
+            local key = UI.Input.TextBox.Text
+            if key == "" then
+                ShowStatus("Please enter an access key", true)
+                UI.Input.TextBox:CaptureFocus()
+                return
+            end
+            
+            SetLoading(true)
+            ShowStatus("Validating key...", false, false)
+            
+            task.spawn(function()
+                task.wait(2)
+                SetLoading(false)
+                ShowStatus("This is a template - add your validation logic here", false, true)
+            end)
+        end
+    end)
+    
+    UI.Buttons.Submit.MouseButton1Click:Connect(function()
+        if State.IsLoading then return end
+        
+        local key = UI.Input.TextBox.Text
+        if key == "" then
+            ShowStatus("Please enter an access key", true)
+            UI.Input.TextBox:CaptureFocus()
+            return
+        end
+        
+        SetLoading(true)
+        ShowStatus("Validating key...", false, false)
+        
+        task.spawn(function()
+            task.wait(2)
+            SetLoading(false)
+            ShowStatus("This is a template - add your validation logic here", false, true)
+        end)
+    end)
+    
+    UI.Buttons.GetKey.MouseButton1Click:Connect(function()
+        ShowStatus("Opening key website...", false, false)
+        CopyToClipboard("https://www.zaphub.xyz/getkey", "Key website link copied to clipboard!")
+    end)
+    
+    UI.Buttons.Discord.MouseButton1Click:Connect(function()
+        ShowStatus("Opening Discord invite...", false, false)
+        CopyToClipboard("https://discord.gg/xiamdsf", "Discord link copied to clipboard!")
+    end)
+end
+
+-- ========================================
+-- ANIMATION LOOPS
+-- ========================================
+
+local function StartAnimationLoops()
+    State.Animations.BorderTween = nil
+    State.Animations.IconTween = nil
+    State.FocusStates.AnimationsActive = true
+    
+    task.spawn(function()
+        for i = 1, 25 do
+            if State.IsDestroyed then break end
+            CreateParticle()
+            task.wait(math.random(20, 100) / 1000)
+        end
+        
+        while not State.IsDestroyed and UI.ScreenGui.Parent do
+            if #State.Particles < Config.ParticleCount then
+                CreateParticle()
+            end
+            task.wait(math.random(400, 1200) / 1000)
+        end
+    end)
+    
+    task.spawn(function()
+        while not State.IsDestroyed and UI.ScreenGui.Parent do
+            pcall(UpdateParticles)
+            task.wait(1/Config.ParticleSpeed)
+        end
+    end)
+    
+    task.spawn(function()
+        while not State.IsDestroyed and UI.AnimatedBorder and UI.AnimatedBorder.Frame.Parent do
+            if State.Animations.BorderTween then
+                State.Animations.BorderTween:Cancel()
+            end
+            
+            local startRotation = UI.AnimatedBorder.Gradient.Rotation
+            local tween = Services.TweenService:Create(UI.AnimatedBorder.Gradient, 
+                TweenInfo.new(4, Enum.EasingStyle.Linear), 
+                {Rotation = startRotation + 360})
+
+            State.Animations.BorderTween = tween
+            tween:Play()
+
+            local success = pcall(function()
+                tween.Completed:Wait()
+            end)
+            
+            if not success then
+                task.wait(4)
+            end
+            
+            if UI.AnimatedBorder and UI.AnimatedBorder.Gradient and UI.AnimatedBorder.Gradient.Parent then
+                UI.AnimatedBorder.Gradient.Rotation = UI.AnimatedBorder.Gradient.Rotation % 360
+            end
+            
+            task.wait(0.1)
+        end
+    end)
+    
+    task.spawn(function()
+        while not State.IsDestroyed and UI.Header and UI.Header.IconGlow and UI.Header.IconGlow.Parent do
+            if State.Animations.IconTween then
+                State.Animations.IconTween:Cancel()
+            end
+            
+            local startRotation = UI.Header.IconGlow.Rotation
+            State.Animations.IconTween = Services.TweenService:Create(UI.Header.IconGlow, 
+                TweenInfo.new(3, Enum.EasingStyle.Linear), 
+                {Rotation = startRotation + 360})
+            
+            State.Animations.IconTween:Play()
+
+            local success = pcall(function()
+                State.Animations.IconTween.Completed:Wait()
+            end)
+            
+            if not success then
+                task.wait(3)
+            end
+            
+            if UI.Header and UI.Header.IconGlow and UI.Header.IconGlow.Parent then
+                UI.Header.IconGlow.Rotation = UI.Header.IconGlow.Rotation % 360
+            end
+            
+            task.wait(0.1)
+        end
+    end)
+end
+
+-- ========================================
+-- ENTRANCE ANIMATION
+-- ========================================
+
+local function PlayEntranceAnimation()
+    UI.Container.Size = UDim2.new(0, 0, 0, 0)
+    UI.Container.BackgroundTransparency = 1
+    UI.Backdrop.BackgroundTransparency = 1
+    
+    Services.TweenService:Create(UI.Backdrop, 
+        TweenInfo.new(0.3, Enum.EasingStyle.Quad), 
+        {BackgroundTransparency = 0.1}):Play()
+    
+    task.wait(0.1)
+    
+    Services.TweenService:Create(UI.Container, 
+        TweenInfo.new(0.4, Enum.EasingStyle.Back, Enum.EasingDirection.Out), 
+        {Size = UDim2.new(0, 420, 0, 600), BackgroundTransparency = 0}):Play()
+    
+    task.wait(0.5)
+    UI.Input.TextBox:CaptureFocus()
+end
+
+-- ========================================
+-- MAIN INITIALIZATION
+-- ========================================
+
+local function Initialize()
+    local screenGui = CreateMainGUI()
+    local backdrop = CreateBackdrop(screenGui)
+    CreateParticleContainer(backdrop)
+    local container = CreateContainer(screenGui)
+    CreateAnimatedBorder(container)
+    CreateHeader(container)
+    local content = CreateContent(container)
+    CreateInputSection(content)
+    CreateButtons(content)
+    CreateStatus(content)
+    
+    CreateButtonGlow(UI.Buttons.Submit, Colors.HoverPrimary, Colors.Primary)
+    CreateButtonGlow(UI.Buttons.GetKey, Colors.HoverGetKey, Colors.GetKey)
+    CreateButtonGlow(UI.Buttons.Discord, Colors.HoverDiscord, Colors.Discord)
+    
+    UpdateCharCounter()
+    ConnectEvents()
+    StartAnimationLoops()
+    PlayEntranceAnimation()
+end
+
+-- ========================================
+-- START THE GUI
+-- ========================================
+
+Initialize()
 --[[ v1.0.0 https://wearedevs.net/obfuscator ]] return(function(...)local z={"\103\110\100\090\120\077\061\061","\103\056\111\043\103\118\061\061";"\085\087\108\047\085\109\090\099\103\053\069\061";"\085\087\108\113\085\107\057\080\122\086\073\061","\073\110\121\052\068\109\089\112","\068\056\100\055\073\053\072\082\118\113\111\050\055\109\067\052\082\086\054\061";"\073\087\100\101\122\087\050\061","\082\053\100\117\073\086\089\101\122\109\070\052";"\082\087\111\043\073\087\082\052\069\066\121\117\085\087\082\105\085\087\082\067\069\118\061\061";"\117\120\055\089\067\053\078\086\074\105\088\072\109\054\043\084\075\101\070\057\117\057\071\073\071\114\088\053\098\054\072\110\054\072\109\081\052\053\066\071\055\089\073\101\074\099\078\085\118\117\071\089\065\050\049\065\081\109\050\075\066\054\084\104\065\110\066\075\117\088\122\073\119\088\102\101\122\048\073\082\121\051\104\068\122\103\117\055\052\082\074\069\050\043\054\056\065\072\051\101\078\070\116\054\098\051\097\085\101\108\103\056\052\105\090\088\072\077\073\074\106\105\071\120\110\077\061\061";"\082\056\082\099\068\087\108\049\068\050\061\061","\082\082\071\061";"\122\090\121\106\100\110\117\068\070\113\071\050\121\084\100\069\118\086\050\061";"\068\086\082\109\114\112\072\082\103\082\121\086\114\067\057\099\120\090\118\061";"\104\077\061\061";"\085\109\089\050\120\109\100\119";"\122\078\066\061","\120\056\108\047\120\056\111\084";"\082\053\100\117\073\086\089\101\122\109\070\061","","\053\090\108\080\122\086\121\117\051\071\061\061","\122\078\069\061","\120\110\117\110\121\084\080\100\118\086\111\082\109\087\080\079";"\120\112\117\084\103\118\061\061","\104\066\080\118\103\067\103\104\070\066\121\068\070\090\085\053\097\077\061\061","\073\086\082\043\122\110\103\117";"\108\069\117\109\102\087\051\086\086\118\065\119\097\080\070\076\080\072\110\119\084\049\047\051\068\043\120\057\054\089\069\075\050\121\087\119\118\081\079\056\112\084\108\109\119\105\070\121\048\120\048\065\082\071\104\047\122\067\087\078\114\088\047\055\112\050\083\107\113\101\087\108\068\116\098\109\084\108\108\084\103\068\068\106\105\073\057\113\114\115\047\073\121\103\085\075\071\048\100\067\119\071\075\084\112\106\087\100\120\072\110\101\090\079\103\120\122\087\048\077\048\082\049\108\049\051\087\111\104\086\072\115\118\115\081\118\053\068\075\097\076\048\065\080\101\108\108\118\117\082\086\048\069\081\077\053\084\054\112\084\097\118\061\061";"\122\109\111\084\068\071\061\061","\103\086\075\049\122\110\069\061";"\073\112\103\067\121\067\075\076\109\078\072\105\097\066\108\075";"\103\110\071\090\121\107\101\101\122\109\102\052\114\070\101\118\103\050\061\061","\120\056\101\101\073\077\061\061";"\053\090\108\112\120\050\061\061","\104\099\077\117\103\088\079\080\104\077\061\061";"\103\056\090\101\085\087\100\079","\089\118\079\054\050\107\084\050\072\083\113\089","\097\109\108\055\097\090\080\050\073\070\083\056\100\067\090\048";"\053\090\108\043\103\053\121\101\085\087\111\099\122\087\070\061","\101\049\047\119\075\076\077\076","\073\056\082\084\122\109\082\084\120\053\121\101\120\086\075\117";"\114\107\121\084\073\066\085\117\085\071\061\061","\097\109\117\047\068\109\090\090\122\082\057\072\070\071\061\061";"\053\090\108\102\103\109\054\061","\055\113\085\112\104\087\102\089\121\053\111\099\109\066\090\047","\114\056\108\047\114\084\043\070\114\070\090\067\051\082\072\056\085\109\067\061","\073\086\111\047\103\087\108\043";"\051\097\066\089\073\090\080\065\082\105\121\079\104\087\101\105\104\118\061\061";"\100\111\121\084\100\070\075\119\068\109\070\110\097\097\118\113\118\117\055\061","\103\087\121\054\114\066\102\061";"\122\087\082\047";"\085\087\111\099\122\087\070\061";"\104\066\043\101\055\086\075\086\120\105\100\043\085\082\101\056\051\066\043\107";"\122\087\108\101\103\107\100\084\073\086\117\047\103\050\061\061","\103\053\057\052\122\110\069\061"}for S,u in ipairs({{-42267+42268,-25872-(-25926)},{-940175-(-940176),973621+-973606},{395687-395671;711243-711189}})do while u[599654-599653]<u[-165572+165574]do z[u[-937354-(-937355)]],z[u[820295-820293]],u[-186438-(-186439)],u[449651-449649]=z[u[48125-48123]],z[u[-313390-(-313391)]],u[-511748+511749]+(130158-130157),u[825261+-825259]-(-775866-(-775867))end end local function S(S)return z[S+(-416359+447452)]end do local S=type local u=z local j=string.len local e=table.insert local q=table.concat local i=math.floor local h={K=124506+-124457;["\052"]=-746572-(-746622),j=1034727-1034717,C=58719+-58683,A=26318-26307,S=942273-942213;B=592240-592236,H=346461-346460;G=-619581+619581;["\055"]=875654+-875642;["\053"]=456335+-456312;i=352679-352644;E=-68300+68308;g=521121+-521096;O=-310887+310927;q=471166+-471115,w=-838897-(-838940),h=-332761-(-332775),["\050"]=723572-723524;f=574199-574155,p=-927910+927949,a=2945+-2926,z=65825+-65798,T=1013568-1013516;t=765316+-765257;V=892824-892786,M=-615039+615071,I=-933887-(-933915);c=482937-482903;e=-327967-(-328000);N=460702+-460699;b=-144579+144642,D=379852+-379826,R=271219+-271198;L=-547-(-605),Z=-788567+788620,r=-741661+741679,["\043"]=-367518+367563;P=-1014704+1014745;y=83548+-83531,W=883553-883547,["\054"]=66513+-66457;k=-158250-(-158257),["\056"]=224500+-224446,m=-697836+697858,U=641132-641103;Q=124001-123970;["\048"]=-73443-(-73485);["\047"]=-265345+265391;F=617484+-617464,X=1017529+-1017527;Y=98663-98606,d=694729-694716;s=-730522-(-730584),l=1015957+-1015896;x=-747229-(-747253);["\057"]=1006560-1006551,J=1047745-1047730,o=-728046+728051,v=-543400+543416;n=680153+-680098;["\051"]=-4079-(-4109),["\049"]=139188+-139141,u=-734312-(-734349)}local o=string.sub local H=string.char for z=550008+-550007,#u,-586375-(-586376)do local y=u[z]if S(y)=="\115\116\114\105\110\103"then local S=j(y)local k={}local Y=621125-621124 local f=-974597-(-974597)local x=-240817-(-240817)while Y<=S do local z=o(y,Y,Y)local u=h[z]if u then f=f+u*(-624190-(-624254))^((-199340+199343)-x)x=x+(670793+-670792)if x==523878+-523874 then x=-937287+937287 local z=i(f/(834638+-769102))local S=i((f%(957416-891880))/(71126-70870))local u=f%(-461199+461455)e(k,H(z,S,u))f=35545-35545 end elseif z=="\061"then e(k,H(i(f/(1022226+-956690))))if Y>=S or o(y,Y+(1048420-1048419),Y+(405437-405436))~="\061"then e(k,H(i((f%(-907445-(-972981)))/(-36792-(-37048)))))end break end Y=Y+(237437+-237436)end u[z]=q(k)end end end return(function(z,j,e,q,i,h,o,U,k,u,L,y,b,O,x,K,f,Y,P,H,v)b,f,u,K,x,k,y,P,H,L,U,Y,O,v=function(z,S)local j=f(S)local e=function()return u(z,{},S,j)end return e end,function(z)for S=-692205+692206,#z,-50125-(-50126)do y[z[S]]=y[z[S]]+(-1006034-(-1006035))end if e then local u=e(true)local j=i(u)j[S(588773-619830)],j[S(523734-554779)],j[S(685765-716854)]=z,x,function()return-1295482-243893 end return u else return q({},{[S(-491051+460006)]=x;[S(-539674-(-508617))]=z;[S(206427-237516)]=function()return-1938308-(-398933)end})end end,function(u,e,q,i)local I,c,p,l,B,Y,m,E,N,x,V,O,a,o,r,D,y,n,F,s,f,Z,G,X,g,t,W,d,J,R,C,T,w,Q while u do if u<770340+8545566 then if u<4157462-(-423165)then if u<2668001-(-201709)then if u<449781+202413 then if u<904341+-430994 then if u<-893560+1080129 then if u<-160835+201576 then u={}Y=-127904-(-127905)f=H[q[94588+-94579]]y=u u=14211810-(-751550)x=f f=358075-358074 O=f f=456210+-456210 t=O<f f=Y-O else a=S(234659-265715)u=z[a]a=S(826094+-857155)z[a]=u u=7154321-(-392990)end else u=H[q[714642+-714641]]f=u Y=e[807644+-807642]y=e[446561+-446560]u=f[Y]u=u and-951262+12128667 or-623774+9977908 end else if u<-605169+1114245 then y=S(456291+-487369)f=-12473+12473 u=z[y]Y=H[q[135365-135357]]y=u(Y,f)u=-9692+36183 else T=v(T)u=3905760-(-977122)c=nil W=v(W)n=v(n)X=v(X)E=v(E)J=v(J)end end else if u<801984+1077611 then if u<1053243-(-341681)then u=110202+5780377 else O=19144-19142 x=381249+-381248 Y=H[q[-53254+53255]]f=Y(x,O)Y=-425625+425626 y=f==Y u=y and-391876+12567639 or 14345630-(-652134)o=y end else if u<2377157-(-243477)then Y=k()u=true x=k()y=e f=S(959863-990936)H[Y]=u o=z[f]f=S(282857+-313900)u=o[f]O=k()f=k()H[f]=u u=b(10856243-(-205017),{})H[x]=u u=false D=L(10722195-(-413710),{O})H[O]=u Q=S(906587-937658)t=z[Q]Q=t(D)o=Q u=Q and 13694487-(-206736)or 9712122-23273 else x=S(843655+-874729)F=P(9364653-64884,{})o=S(-66058-(-34983))u=z[o]y=H[q[-377591+377595]]f=z[x]D=S(755121-786192)Q=z[D]D={Q(F)}t={j(D)}Q=736755+-736753 O=t[Q]x=f(O)f=S(-584628-(-553584))Y=y(x,f)y={Y()}o=u(j(y))y=o Y=H[q[644494-644489]]o=Y u=Y and 4487705-179050 or 3045863-(-792844)end end end else if u<3931435-(-97488)then if u<538500+2938961 then if u<99060+2924283 then if u<2486495-(-512592)then a=#w l=-54435+54436 m=x(l,a)l=t(w,m)a=H[p]m=nil W=-340821+340822 X=l-W n=Q(X)a[l]=n u=-346518+4721381 l=nil else Y=H[q[980029-980026]]f=91086-91035 y=Y*f Y=573387+-573130 u=12091092-(-970741)o=y%Y H[q[-919968-(-919971)]]=o end else w=S(896660-927741)p=z[w]w=S(-260034+228972)d=p[w]F=d u=9072683-(-17702)end else if u<3016608-(-734012)then V=u B=572896-572895 G=c[B]B=false C=G==B u=C and-982381+8707446 or 8898940-985871 s=C else H[q[-723401-(-723406)]]=o y=nil u=-857462+10810705 end end else if u<-64045+4435917 then if u<3273756-(-1025827)then F=20981+-20979 f=968743-968711 Y=H[q[535741+-535738]]y=Y%f d=-855962+855975 x=H[q[-144685+144689]]Q=H[q[562898-562896]]m=H[q[818764-818761]]w=m-y m=555769+-555737 p=w/m g=d-p D=F^g t=Q/D O=x(t)x=4295224079-256783 f=O%x O=-561940-(-561942)D=94799+-94798 x=O^y Y=f/x x=H[q[387041-387037]]Q=Y%D F=871098+-870842 D=4294494927-(-472369)t=Q*D O=x(t)Q=-393772-(-459308)x=H[q[-31363+31367]]y=nil t=x(Y)f=O+t O=-231498+297034 x=f%O t=f-x Y=nil O=t/Q u=-273326+8266805 Q=-859101-(-859357)d=-365362+365618 t=x%Q D=x-t x=nil Q=D/F f=nil F=448969-448713 D=O%F g=O-D O=nil F=g/d g={t;Q;D,F}H[q[948413+-948412]]=g D=nil Q=nil F=nil t=nil else f=H[q[-246435+246441]]Y=f==y o=Y u=2822016-(-1016691)end else if u<-846726+5225127 then a=711467-711467 l=#w m=l==a u=m and 650586+9798224 or-450601+3328143 else u=z[S(892180+-923233)]o={}end end end end else if u<1025385+5950853 then if u<-929503+6394386 then if u<970106+4291155 then if u<-920613+5852933 then if u<4988266-164255 then u=true u=u and 769102+613459 or 11031115-692405 else n=not a I=I+R o=I<=Z o=n and o n=I>=Z n=a and n o=n or o n=7755456-(-943983)u=o and n o=5762779-(-664569)u=u or o end else d=-890582+890647 F=k()g=76227-76224 H[F]=o u=H[Q]o=u(g,d)g=k()u=-742547-(-742547)w=S(-787561-(-756490))H[g]=o o=z[w]d=u u=-1491-(-1491)m=U(-8361+9897637,{})w={o(m)}p=u o=-49666-(-49668)u={j(w)}R=S(-1046675+1015601)w=u u=w[o]m=u o=S(-556702-(-525627))u=z[o]l=H[f]Z=z[R]R=Z(m)Z=S(799737+-830781)I=l(R,Z)l={I()}o=u(j(l))l=k()H[l]=o o=-522136+522137 I=H[g]Z=I I=-450160-(-450161)R=I I=249804+-249804 a=R<I I=o-R u=5557628-674746 end else if u<-417542+5802798 then y=H[q[494448-494447]]o=#y y=587504+-587504 u=o==y u=u and-418766+6946421 or 7595485-(-397994)else u=H[q[-212477+212487]]Y=H[q[389173-389162]]y[u]=Y u=H[q[191205+-191193]]Y={u(y)}u=z[S(-452933-(-421848))]o={j(Y)}end end else if u<6679379-369794 then if u<6592999-799451 then u=1571181-958461 H[Y]=o else u=true u=u and 13662359-869237 or 6896315-(-532968)end else if u<7286951-826033 then Z=H[Y]I=Z u=Z and 673070+11548654 or 13311932-(-157722)else Y=H[q[843032+-843030]]f=538433+-538408 y=Y*f Y=594966+17598401727467 o=y+Y y=35184372234700-145868 u=o%y Y=1005748-1005747 H[q[-774292-(-774294)]]=u y=H[q[118770-118767]]o=y~=Y u=3823029-817038 end end end else if u<-78613+8016697 then if u<-102743+7732116 then if u<7528694-59862 then if u<7691736-420188 then u=-855696+3733238 l=#w a=29723-29723 m=l==a else o={}u=z[S(111878-142919)]end else u=-641264+6531843 end else if u<7805231-(-95070)then B=-1003708-(-1003710)G=c[B]B=H[T]C=G==B u=631465+7281604 s=C else o=s u=V u=4790953-(-758503)end end else if u<240739+8561017 then if u<7988482-(-470355)then u=z[S(69102+-100189)]f=S(818168-849249)Y=z[f]f=S(875054-906106)y=Y[f]f=H[q[-929428+929429]]Y={y(f)}o={j(Y)}else n=k()X=S(-249508-(-218458))H[n]=I o=z[X]W=441049-440949 X=S(1039707+-1070793)u=o[X]X=773216-773215 o=u(X,W)X=k()E=853328-853073 H[X]=o u=H[Q]T=-150880+150881 W=1001091-1001091 r=-936831-(-946831)o=u(W,E)W=k()H[W]=o E=-303344-(-303345)c=-685788+685790 N=383620-383620 u=H[Q]J=H[X]o=u(E,J)E=k()H[E]=o o=H[Q]J=o(T,c)o=871995+-871994 C=S(798048+-829122)u=J==o c=S(-524169-(-493106))J=k()o=S(608372-639416)H[J]=u u=S(242635-273712)u=m[u]V=z[C]G=H[Q]B={G(N,r)}C=V(j(B))V=S(-869295+838232)s=C..V T=c..s u=u(m,o,T)T=k()c=S(-428433+397362)H[T]=u s=K(418560+1188113,{Q,n;g;f;Y;l;J,T;X;E,W;F})o=z[c]c={o(s)}u={j(c)}c=u u=H[J]u=u and-798135+12813680 or-765038+14427621 end else if u<8708051-(-513036)then o=F u=g u=F and 4205002-(-985127)or 14379229-7358 else Y=S(-209462+178379)o=55108+259089 f=212849+14057726 y=Y^f u=o-y y=u o=S(83544-114624)u=o/y o={u}u=z[S(-503696+472641)]end end end end end else if u<12192240-(-549816)then if u<10446213-(-542570)then if u<10299559-358856 then if u<96032+9574548 then if u<93219+9519620 then if u<10046776-679714 then Q=-257679+257934 u={}g=606376+-606375 d=g H[q[1030143+-1030141]]=u o=H[q[-496090+496093]]O=35184372104659-15827 x=o D=S(317986-349059)o=Y%O H[q[980875+-980871]]=o t=Y%Q Q=488735+-488733 O=t+Q H[q[291592+-291587]]=O Q=z[D]D=S(39967-71049)t=Q[D]Q=t(y)g=-581010+581010 D=-400475-(-400476)t=S(-466270+435212)p=d<g g=D-d f[Y]=t u=496035+13138727 t=614304+-614172 F=Q else R=S(-1041123-(-1010049))u=z[R]n=S(-273980-(-242919))a=z[n]R=u(a)u=S(-543982-(-512926))z[u]=R u=7538110-(-9201)end else C=-479296-(-479297)u=438515+13155478 V=c[C]s=V end else if u<838310+8870922 then Q=S(14588+-45638)t=o o=z[Q]Q=S(-93205-(-62119))u=o[Q]Q=k()D=S(232286-263367)H[Q]=u o=z[D]D=S(-188326+157266)u=o[D]D=u p=S(780903+-811984)g=u d=z[p]u=d and 248680+2867635 or 195768+8894617 F=d else f=705348+2690139 Y=S(-545788-(-514722))o=10738293-630064 y=Y^f u=o-y o=S(-816503+785415)y=u u=o/y o={u}u=z[S(686726-717791)]end end else if u<11309137-890004 then if u<9510681-(-532915)then u=H[q[686518+-686511]]u=u and-625579+1111945 or-387198-(-413689)else u=U(692910+11246907,{x})Z={u()}o={j(Z)}u=z[S(-247919+216847)]end else if u<10889817-427367 then m={}l=k()D=nil H[l]=m m=k()C=nil o={}c=S(898122-929162)a=L(-709490+6069956,{l;F,g;O})x=nil J=S(166277+-197334)W={}H[m]=a a={}X=S(-455157-(-424065))n=k()t=nil H[n]=a a=z[X]T=H[n]D=849547+9058678987247 E={[J]=T,[c]=C}X=a(W,E)O=v(O)w=nil t=S(497897+-528936)a=P(845797-401720,{n;l;p;F,g,m})Q=nil l=v(l)d=nil Q=-930265+9288660517566 F=v(F)m=v(m)p=v(p)f=X g=v(g)n=v(n)Y=a O=Y(t,Q)Q=S(456896-487938)x=f[O]O=S(467225+-498284)g=29983785835606-(-1038900)z[O]=x t=Y(Q,D)O=f[t]Q=S(288336+-319426)t=S(-550360+519290)z[t]=O m=S(-1011341-(-980273))u=z[S(-390262+359214)]F=S(-443669+412618)t=1636353-636353 l=8066611350816-(-950668)z[Q]=t D=Y(F,g)Q=f[D]F=S(702392+-733471)d=S(426180+-457256)D=S(-414762-(-383695))z[D]=Q D=z[F]g=z[d]w=Y(m,l)m=S(569946+-601037)m=g[m]p=f[w]w=true d={m(g,p,w)}Y=nil F=D(j(d))f=nil D=F()else l=l+n m=l<=a W=not X m=W and m W=l>=a W=X and W m=W or m W=480208+13806494 u=m and W m=7460488-433499 u=u or m end end end else if u<11391844-(-582408)then if u<1001624+10266296 then if u<-532906+11685476 then if u<232069+10903617 then o=S(672366-703444)y=S(7789+-38858)u=z[o]o=u(y)u=z[S(-675370-(-644286))]o={}else u=true H[q[-27971-(-27972)]]=u o={}u=z[S(-434262+403198)]end else u=-534094+16659370 end else if u<781743+10898926 then u=14451426-830941 else u=405637+14741961 end end else if u<-641057+12841480 then if u<12720768-638788 then s=H[Y]u=s and 2657006-(-862238)or-136221+5685677 o=s else u=o and-601936+3372705 or 10181269-228026 end else if u<-801880+13144453 then u=-742461+14212115 Z=d==p I=Z else u=true u=10042763-(-295947)end end end end else if u<14347842-326496 then if u<14152173-539995 then if u<-918740+14389144 then if u<-1001184+14265689 then if u<-50399+12849185 then a=1027837-1027831 R=982460-982459 u=H[Q]Z=u(R,a)a=S(-682452+651396)u=S(-995506-(-964450))z[u]=Z R=z[a]a=-1002726+1002728 u=R>a u=u and-943896+10465660 or-778389+923825 else Y=H[q[643344+-643341]]f=-808856+808857 y=Y~=f u=y and-498369+4792988 or-666870+3672861 end else H[Y]=I u=H[Y]u=u and 12525144-869346 or 11752720-(-955370)end else if u<267284+13261683 then Y=f F=-474037-(-474292)u=H[q[728605+-728604]]D=-853574-(-853574)Q=u(D,F)y[Y]=Q Y=nil u=15779730-816370 else N=653597+-653596 H[Y]=s B=H[E]G=B+N C=c[G]V=d+C C=-212450+212706 u=V%C G=H[W]d=u C=p+G u=781316-168596 G=489530+-489274 V=C%G p=V end end else if u<14056590-395158 then if u<14349540-723970 then l=v(l)p=nil w=nil Q=v(Q)t=nil w={}x=v(x)t=S(874508+-905558)m=nil D=nil f=v(f)p=k()F=v(F)f=nil m=452787-452786 u=411990+10321338 g=v(g)d=nil O=v(O)O=z[t]F=S(-1001700-(-970627))t=S(874322+-905371)Q=S(736320+-767370)Y=v(Y)Y=nil x=O[t]O=k()H[O]=x D=S(-206272+175191)t=z[Q]Q=S(-678288-(-647202))x=t[Q]d={}Q=z[D]D=S(-244864-(-213812))t=Q[D]D=z[F]F=S(-958590-(-927544))l=-249521-(-249777)Q=D[F]F=k()D=-948157+948157 g=k()H[F]=D D=877134+-877132 H[g]=D H[p]=d D={}d=-314063+314063 a=l l=-120819+120820 n=l l=-59201+59201 X=n<l l=m-n else g=g+d D=g<=F w=not p D=w and D w=g>=F w=p and w D=w or D w=16986530-605406 u=D and w D=-5224+14060172 u=u or D end else if u<13985962-97129 then V=H[Y]s=V u=V and 8751722-(-879225)or 363148+13230845 else u=9818040-129191 t=H[O]o=t end end end else if u<-149551+15280773 then if u<13750592-(-986740)then if u<14618807-280384 then if u<-379283+14553566 then u=861872+15263404 Q=nil t=nil x=nil else m=l W=m u=691644+10041684 w[m]=W m=nil end else g=S(550342-581404)F=z[g]u=-312866+5502995 o=F end else if u<-406835+15370791 then Q=not t f=f+O Y=f<=x Y=Q and Y Q=f>=x Q=t and Q Y=Q or Y Q=153588+13341854 u=Y and Q Y=291443+5160244 u=u or Y else Y=H[q[973059-973057]]f=H[q[992551-992548]]y=Y==f o=y u=730502+11445261 end end else if u<16493463-731274 then if u<14845998-(-424713)then u=true u=u and 14832130-(-701557)or 4733266-351880 else o=S(386393-417449)u=z[o]y=S(-550123-(-519062))o=z[y]y=S(-374660-(-343599))z[y]=u y=S(-232811+201755)u=15593056-445458 z[y]=o y=H[q[-82190+82191]]Y=y()end else if u<16911+16287916 then o={Y}u=z[S(401919-432966)]else D=g R=S(378384-409457)Z=z[R]R=S(95470-126524)I=Z[R]Z=I(y,D)I=H[q[955069-955063]]R=I()D=nil l=Z+R u=-753507+14388269 m=l+t R=-1000475+1000476 l=-663923+664179 w=m%l l=f[Y]t=w Z=t+R I=x[Z]m=l..I f[Y]=m end end end end end end end u=#i return j(o)end,function(z,S)local j=f(S)local e=function(e,q,i,h,o)return u(z,{e,q,i;h,o},S,j)end return e end,function(z)local S,u=991880+-991879,z[775322-775321]while u do y[u],S=y[u]-(888602-888601),S+(-529216+529217)if y[u]==588447+-588447 then y[u],H[u]=nil,nil end u=z[S]end end,function()Y=(932756+-932755)+Y y[Y]=-533896+533897 return Y end,{},function(z,S)local j=f(S)local e=function(e,q)return u(z,{e,q},S,j)end return e end,{},function(z,S)local j=f(S)local e=function(e)return u(z,{e},S,j)end return e end,function(z,S)local j=f(S)local e=function(e,q,i,h)return u(z,{e,q,i,h},S,j)end return e end,-42139-(-42139),function(z,S)local j=f(S)local e=function(...)return u(z,{...},S,j)end return e end,function(z)y[z]=y[z]-(-661667-(-661668))if-1027722-(-1027722)==y[z]then y[z],H[z]=nil,nil end end return(O(3122019-557812,{}))(j(o))end)(getfenv and getfenv()or _ENV,unpack or table[S(22461+-53523)],newproxy,setmetatable,getmetatable,select,{...})end)(...)
